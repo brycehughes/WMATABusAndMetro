@@ -16,7 +16,13 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -33,6 +39,7 @@ import javafx.scene.paint.Paint;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.StrokeType;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -53,17 +60,21 @@ public class WMATABusAndMetro extends Application {
         circleLocations = new ArrayList<String>();
         circles = new ArrayList<Circle>();
         hcircle = new HashMap<String, Circle>();
+
     }
 
-    public void setupGUI() {
+    public void start() {
 
+        launch();
     }
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        launch();
+        final WMATABusAndMetro wbm = new WMATABusAndMetro();
+        wbm.start();
+
     }
 
     public void addCircle() {
@@ -137,7 +148,7 @@ public class WMATABusAndMetro extends Application {
         hcircle.put("F03", new Circle(541.0, 576.0, 5.0));
         hcircle.put("F03-2", new Circle(513.0, 575.0, 5.0));
         hcircle.put("D03", new Circle(526.0, 591.0, 5.0));
-        hcircle.put("Do3-2", new Circle(527.0, 560.0, 5.0));
+        hcircle.put("D03-2", new Circle(527.0, 560.0, 5.0));
         hcircle.put("D02-2", new Circle(484.0, 551.0, 5.0));
         hcircle.put("G05", new Circle(825.0, 564.0, 5.0));
         hcircle.put("G05-2", new Circle(824.0, 545.0, 5.0));
@@ -259,7 +270,7 @@ public class WMATABusAndMetro extends Application {
         hcircle.put("E09", new Circle(623.0, 298.0, 5.0));
         hcircle.put("E09-2", new Circle(609.0, 285.0, 5.0));
         hcircle.put("E08", new Circle(606.0, 315.0, 5.0));
-        hcircle.put("E08", new Circle(592.0, 300.0, 5.0));
+        hcircle.put("E08-2", new Circle(592.0, 300.0, 5.0));
         hcircle.put("E07", new Circle(588.0, 331.0, 5.0));
         hcircle.put("E07-2", new Circle(575.0, 319.0, 5.0));
         hcircle.put("F05-2", new Circle(580.0, 661.0, 5.0));
@@ -270,10 +281,11 @@ public class WMATABusAndMetro extends Application {
         hcircle.put("F07", new Circle(640.0, 673.0, 5.0));
         hcircle.put("F04-2", new Circle(556.0, 660.0, 5.0));
         hcircle.put("F04", new Circle(557.0, 640.0, 5.0));
-        hcircle.put("G01-2",new Circle(741.0,546.0,5.0));
-        hcircle.put("G01" ,new Circle(742.0,565.0,5.0));
-        for(String s:hcircle.keySet())
+        hcircle.put("G01-2", new Circle(741.0, 546.0, 5.0));
+        hcircle.put("G01", new Circle(742.0, 565.0, 5.0));
+        for (String s : hcircle.keySet()) {
             root.getChildren().add(hcircle.get(s));
+        }
     }
 
     public void printAll() {
@@ -283,26 +295,37 @@ public class WMATABusAndMetro extends Application {
         }
     }
     
-    public void displayPositions(HashMap<String,String[]> instructions){
-        for(String s: instructions.keySet()){
-            String[] instruction = instructions.get(s);
+    public void clearStations(){
+        for(String key:hcircle.keySet()){
+            Circle c = hcircle.get(key);
+            c.setFill(Color.BLACK);
+            c.setStrokeWidth(0);
+            
+        }
+    }
+
+    public void displayPositions(HashMap<String, Instruction> instructions) {
+        clearStations();
+        for (String s : instructions.keySet()) {
+            Instruction instruction = instructions.get(s);
             Circle c = hcircle.get(s);
-            try{
-                c.setFill(StationDecoder.decodeLine(instruction[1]));
-                if(instruction[0].equals("blink")){
+            try {
+                c.setFill(instruction.getColor());
+                if (instruction.getDirective().equals("blink")) {
                     c.setStrokeType(StrokeType.OUTSIDE);
                     c.setStroke(Color.web("black", 0.8));
                     c.setStrokeWidth(4);
                 }
-            }catch(Exception e){
+            } catch (Exception e) {
+                //e.printStackTrace();
                 System.out.println(s);
             }
         }
     }
-    
+
     @Override
     public void start(Stage primaryStage) throws Exception {
-        
+
         Button addCircle = new Button("Add Circle");
         addCircle.setOnMouseClicked(addCircleEvent);
         Button printCircles = new Button("Print Circles");
@@ -320,6 +343,38 @@ public class WMATABusAndMetro extends Application {
         scene.getStylesheets().add("resources/WMATA.css");
         primaryStage.setScene(scene);
         primaryStage.show();
+        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent t) {
+                Platform.exit();
+                System.exit(0);
+            }
+        });
+        TimerTask t = new TimerTask(){
+             @Override
+            public void run() {
+                StationDecoder sd = new StationDecoder();
+                displayPositions(sd.getInstructions());
+
+            }
+        };
+        Timer timer = new Timer();
+        timer.schedule(t, 10000, 10000);
+        /*
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(WMATABusAndMetro.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    StationDecoder sd = new StationDecoder();
+                    displayPositions(sd.getInstructions());
+                }
+            }
+        });*/
     }
 
     EventHandler<DragEvent> circleOnDragEnteredEventHandler

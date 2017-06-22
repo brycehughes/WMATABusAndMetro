@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import static java.lang.Thread.sleep;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,39 +33,16 @@ public class StationDecoder {
     HashMap<Integer, String> circuitInfo;
     HashMap<String, HashMap> circuitInfo2;
     HashMap<String, JSONArray> lineCircuitInfo;
+    HashMap<String, HashMap> circuitLineSeq;
     //Metro Lines
     String[] lines = {"RD", "YL", "GR", "BL", "OR", "SV"};
-
-    public static Color decodeLine(String in) {
-        Color retval = null;
-        switch (in) {
-            case "RD":
-                retval = Color.RED;
-                break;
-            case "YL":
-                retval = Color.YELLOW;
-                break;
-            case "GR":
-                retval = Color.GREEN;
-                break;
-            case "BL":
-                retval = Color.BLUE;
-                break;
-            case "OR":
-                retval = Color.ORANGE;
-                break;
-            case "SV":
-                retval = Color.SILVER;
-                break;
-        }
-        return retval;
-    }
 
     public StationDecoder() {
         c2n = new HashMap<String, String>();
         c2l = new HashMap<String, String>();
         circuitInfo = new HashMap<Integer, String>();
         circuitInfo2 = new HashMap<String, HashMap>();
+        circuitLineSeq = new HashMap<String,HashMap>();
         this.loadCircuitIdInfo();
     }
 
@@ -134,9 +112,10 @@ public class StationDecoder {
         return trainloc;
     }
 
-    public HashMap<String, String[]> getInstructions() {
+    public HashMap<String, Instruction> getInstructions() {
         //Station code -> Instruction (Solid,Blink)
         HashMap instructions = new HashMap<String, String>();
+        HashMap<String, Instruction> instructionAL = new HashMap<String, Instruction>();
         HashMap trains = getTrainLocations();
         //System.out.println(trains);
         //get train locations
@@ -155,28 +134,37 @@ public class StationDecoder {
             HashMap<Integer, String> lineCircuitInfo = circuitInfo2.get(linecode);
             String ciString = lineCircuitInfo.get((int) circuitId);
             if (ciString != null) { //Because apparently not every circuit is in the circuit info for some reason
+                Instruction instruction = new Instruction();
                 JSONObject ci = new JSONObject(ciString);
                 String stationCode = ci.get("StationCode").toString();
                 if (stationCode != "null") {
-                    
+                    instruction.setDirection(direction);
+                    instruction.setDistance(0);
+                    instruction.setStation(stationCode);
+                    instruction.setDirective("solid");
+                    instruction.setColor(olinecode);
                     if (direction == 2) {
+
                         stationCode += "-2";
                     }
-                    String[] instruction = {"solid", olinecode};
-                    instructions.put(stationCode, instruction);
-                    
+
+                    instructionAL.put(stationCode, instruction);
+
                 } else {
                     try {
                         //find closest station
-                        String cs = closestStation(linecode, circuitId, direction);
-                       
-                        if (direction == 2) {
+                        instruction = closestStationBlinkInstruction(linecode, circuitId, direction);
+                        String cs = instruction.getStation();
+                        if (instruction.getDirection() == 2) {
                             cs += "-2";
                         }
-                        System.out.println(olinecode + " - " + cs);
-                        if (!instructions.containsKey(cs)) {
-                            String[] instruction = {"blink", olinecode};
-                            instructions.put(cs, instruction);
+                        if (instructionAL.containsKey(cs)) {
+                            Instruction pastInstruction = instructionAL.get(cs);
+                            if (pastInstruction.getDistance() < instruction.getDistance()) {
+                                instructionAL.put(cs, instruction);
+                            }
+                        } else {
+                            instructionAL.put(cs, instruction);
                         }
                     } catch (Exception e) {
                         //System.out.println(trains.get(circuitId).toString());
@@ -193,7 +181,8 @@ public class StationDecoder {
         //station = findclosestStation(circuit#,direction)
         //if !hmap.has(station), hmap.put(station,blink)
         //catch
-        return instructions;
+        return instructionAL;
+        //return instructions;
     }
 
     public String closestStation(String line, int circuit, int direction) throws Exception {
@@ -214,6 +203,32 @@ public class StationDecoder {
             }
         }
         return station;
+    }
+
+    public Instruction closestStationBlinkInstruction(String line, int circuit, int direction) throws Exception {
+        HashMap<Integer, String> curLine = circuitInfo2.get(line);
+ 
+        JSONObject jo = new JSONObject(curLine.get(circuit));
+        int seqnum = jo.getInt("SeqNum");
+        HashMap<Integer, String> curLineSeq = circuitLineSeq.get(line);
+        int distance = 0;
+        int ocircuit = circuit;
+        String station = "null";
+        while (station == "null") {
+            if (!curLineSeq.containsKey(seqnum)) {
+                System.out.println(line + " - "+ direction + " - " + seqnum);
+                System.out.println("Nope");
+                throw new Exception("Station Not Found");
+            }
+            JSONObject circuitJO = new JSONObject(curLineSeq.get(seqnum));
+            station = circuitJO.get("StationCode").toString();
+            if(direction==1)
+                seqnum+=1;
+            else
+                seqnum-=1;
+            distance+=1;
+        }
+        return new Instruction(station, "blink", distance, direction, line);
     }
 
     public String getStationLine(String stationCode) {
@@ -265,8 +280,11 @@ public class StationDecoder {
                 String lineName = cid.get("LineCode").toString();
                 JSONArray tcircuits = (JSONArray) cid.getJSONArray(cid.keys().next());
                 HashMap<Integer, String> circuitLine = new HashMap<Integer, String>();
+                HashMap<Integer, String> circuitLineSeqInd = new HashMap<Integer, String>();
                 for (int j = 0; j < tcircuits.length(); j++) {
                     JSONObject tcir = tcircuits.getJSONObject(j);
+                    int seqnum =tcir.getInt("SeqNum");
+                    circuitLineSeqInd.put(seqnum,tcir.toString());
                     int CircuitId = tcir.getInt("CircuitId");
                     circuitLine.put(CircuitId, tcir.toString());
                 }
@@ -274,7 +292,7 @@ public class StationDecoder {
                     lineName += 2;
                 }
                 circuitInfo2.put(lineName, circuitLine);
-
+                circuitLineSeq.put(lineName,circuitLineSeqInd);
             }
             //System.out.println(circuitInfo);
         } catch (Exception e) {
@@ -284,47 +302,6 @@ public class StationDecoder {
         }
     }
 
-    /*
-    public void loadCircuitIdInfoOld() {
-        try {
-            URL yahoo = new URL("https://api.wmata.com/TrainPositions/StandardRoutes?contentType=json");
-            URLConnection yc = yahoo.openConnection();
-            yc.setRequestProperty("api_key", "1457227966e0459faea7fd0ed4272b9d");
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(
-                            yc.getInputStream()));
-            String inputLine;
-            StringBuilder response = new StringBuilder();
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-            JSONObject js = new JSONObject(response.toString());
-            Iterator<String> keys = js.keys();
-            String StandardRoutes = keys.next();
-            JSONArray jArray = (JSONArray) js.get(StandardRoutes);
-
-            for (int i = 0; i < jArray.length(); i++) {
-                JSONObject cid = (JSONObject) jArray.get(i);
-                System.out.println(cid.get("LineCode").toString());
-                JSONArray tcircuits = (JSONArray) cid.getJSONArray(cid.keys().next());
-                for (int j = 0; j < tcircuits.length(); j++) {
-                    JSONObject tcir = tcircuits.getJSONObject(j);
-                    if(circuitInfo.containsKey((int)tcir.get("CircuitId")))
-                        //System.out.println(circuitInfo.get((int)tcir.get("CircuitId")) + " - " + tcir);
-                    //System.out.println(tcir);
-                    //System.out.println(tcir.get("CircuitId").toString());
-                    circuitInfo.put((int) tcir.get("CircuitId"), tcir.toString());
-                }
-            }
-            //System.out.println(circuitInfo);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-
-        }
-    }
-     */
     public void getStations() {
         try {
             String baseRequest = "https://api.wmata.com/Rail.svc/json/jStations?";
@@ -362,11 +339,31 @@ public class StationDecoder {
         }
     }
 
+    public void printLineInfo() {
+        for (String line : circuitInfo2.keySet()) {
+            System.out.println("---------" + line + "---------");
+            HashMap<Integer, String> hmap = circuitInfo2.get(line);
+            for (int circuit : hmap.keySet()) {
+                System.out.println(circuit + " - " + hmap.get(circuit));
+            }
+        }
+    }
+
+    public void printCurrentLineInfo(String in) {
+
+        HashMap<Integer, String> hmap = circuitInfo2.get(in);
+        for (int circuit : hmap.keySet()) {
+            System.out.println(circuit + " - " + hmap.get(circuit));
+        }
+
+    }
+
     public static void main(String[] args) throws Exception {
         StationDecoder sd = new StationDecoder();
-        printStationInfo();
-        HashMap<String, String[]> ob = sd.getInstructions();
-        System.out.println(ob);
+        HashMap<String, Instruction> hmap = sd.getInstructions();
+        sd.printLineInfo();
+        //for(String s:hmap.keySet())
+        //System.out.println(hmap.get(s));
     }
 
 }

@@ -5,6 +5,8 @@
  */
 package wmatabusandmetro;
 
+import javafx.scene.paint.Color;
+
 /**
  *
  * @author Goalie
@@ -13,13 +15,70 @@ public class Instruction {
     
     private String station;
     private String directive;
+    private int direction;
     private int distanceFromStation;
+    private String linecode;
+    private Color trainColor;
     
     public Instruction(){
     
     }
-    public Instruction(String station, String directive, int distance){
+    public Instruction(String station, String directive, int distance,int direction, String linecode){
+    this.station=station;
+    this.directive=directive;
+    this.direction=direction;
+    this.distanceFromStation=distance;
+    this.trainColor = decodeLine(linecode);
+    this.linecode=linecode;
+    }
     
+    public static Color decodeLine(String in) {
+        Color retval = null;
+        switch (in) {
+            case "RD":
+                retval = Color.RED;
+                break;
+            case "RD2":
+                retval = Color.RED;
+                break;
+            case "YL":
+                retval = Color.YELLOW;
+                break;
+            case "YL2":
+                retval = Color.YELLOW;
+                break;
+            case "GR":
+                retval = Color.GREEN;
+                break;
+            case "GR2":
+                retval = Color.GREEN;
+                break;
+            case "BL":
+                retval = Color.BLUE;
+                break;
+            case "BL2":
+                retval = Color.BLUE;
+                break;
+            case "OR":
+                retval = Color.ORANGE;
+                break;
+            case "OR2":
+                retval = Color.ORANGE;
+                break;
+            case "SV":
+                retval = Color.SILVER;
+                break;
+            case "SV2":
+                retval = Color.SILVER;
+                break;
+        }
+        return retval;
+    }
+    
+    public String toString(){
+  
+        String retval= "[station=" + this.station + ",directive=" + this.directive + ",direction=" + this.direction + ",distance=" + this.distanceFromStation + ",color=" + this.linecode + "]";
+        return retval;
     }
     
     public void setStation(String in){
@@ -31,6 +90,13 @@ public class Instruction {
     public void setDistance(int in){
     this.distanceFromStation=in;
     }
+    public void setDirection(int in){
+    this.direction=in;
+    }
+    public void setColor(String in){
+        this.trainColor=decodeLine(in);
+        this.linecode=in;
+    }
     
     public String getStation(){
     return this.station;
@@ -41,5 +107,10 @@ public class Instruction {
     public int getDistance(){
     return this.distanceFromStation;
     }
-    
+    public int getDirection(){
+    return this.direction;
+    }
+    public Color getColor(){
+        return this.trainColor;
+    }
 }
