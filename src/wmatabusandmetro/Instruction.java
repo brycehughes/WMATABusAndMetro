@@ -8,7 +8,8 @@ package wmatabusandmetro;
 import javafx.scene.paint.Color;
 
 /**
- *
+ * This class is used in order to keep information collected in a single place. This will include enough information for a 
+ * sub program to be able to display information correctly
  * @author Goalie
  */
 public class Instruction {
@@ -32,6 +33,7 @@ public class Instruction {
     this.linecode=linecode;
     }
     
+    // Verbose switch case. Could be shortened but kept longer so that maintenence over long periods of time is easier
     public static Color decodeLine(String in) {
         Color retval = null;
         switch (in) {
@@ -75,6 +77,9 @@ public class Instruction {
         return retval;
     }
     
+    /***
+    *allows for easy viewing of train information
+    */
     public String toString(){
   
         String retval= "[station=" + this.station + ",directive=" + this.directive + ",direction=" + this.direction + ",distance=" + this.distanceFromStation + ",color=" + this.linecode + "]";
