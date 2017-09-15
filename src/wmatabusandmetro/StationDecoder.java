@@ -19,8 +19,9 @@ import javafx.scene.paint.Color;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- *
+/** 
+ * Station Decoder is used to find general information about stations using the API. Note a lot of this isn't the cleanest code
+ * because I was doing this for fun and part of that fun isn't spending a ton of time over designing or refactoring.
  * @author Goalie
  */
 public class StationDecoder {
@@ -37,6 +38,8 @@ public class StationDecoder {
     //Metro Lines
     String[] lines = {"RD", "YL", "GR", "BL", "OR", "SV"};
 
+    //Get circuit information. There are thousands of circuits for much fewer stations and train info
+    //is based on circuit, not station. So circuit info is used to determine next station.
     public StationDecoder() {
         c2n = new HashMap<String, String>();
         c2l = new HashMap<String, String>();
@@ -46,12 +49,14 @@ public class StationDecoder {
         this.loadCircuitIdInfo();
     }
 
+    //General information
     public static void printStationInfo() {
         HashMap<Integer, JSONObject> trainloc = new HashMap<Integer, JSONObject>();
         try {
             //Create connection
             URL yahoo = new URL("https://api.wmata.com/Rail.svc/json/jStations");
             URLConnection yc = yahoo.openConnection();
+            //Leaving in API Key for ease of use. Only people looking at this recruiters and me
             yc.setRequestProperty("api_key", "1457227966e0459faea7fd0ed4272b9d");
             BufferedReader in = new BufferedReader(
                     new InputStreamReader(
@@ -76,7 +81,9 @@ public class StationDecoder {
         } finally {
         }
     }
-
+    /***
+    * Gets train locations from WMATA API
+    */
     public static HashMap<Integer, JSONObject> getTrainLocations() {
         HashMap<Integer, JSONObject> trainloc = new HashMap<Integer, JSONObject>();
         try {
@@ -112,6 +119,10 @@ public class StationDecoder {
         return trainloc;
     }
 
+    /***
+    * This is used to tell the visual representation what to do. It gets train locations and then creates instructions
+    * based off of those train locations and data.
+    */
     public HashMap<String, Instruction> getInstructions() {
         //Station code -> Instruction (Solid,Blink)
         HashMap instructions = new HashMap<String, String>();
@@ -185,6 +196,12 @@ public class StationDecoder {
         //return instructions;
     }
 
+    
+    /***
+    * Closest station allows the code to find the next station a train will go to. This is useful
+    * for when a train is inbetween stations and we want to visually represent that its going to 
+    * a station rather than just not show up on the map at all.
+    */
     public String closestStation(String line, int circuit, int direction) throws Exception {
         HashMap<Integer, String> curLine = circuitInfo2.get(line);
         int ocircuit = circuit;
@@ -205,6 +222,9 @@ public class StationDecoder {
         return station;
     }
 
+    /***
+    * Similar to above but returns an instruction to be consumed by a visual representation
+    */
     public Instruction closestStationBlinkInstruction(String line, int circuit, int direction) throws Exception {
         HashMap<Integer, String> curLine = circuitInfo2.get(line);
  
@@ -231,6 +251,9 @@ public class StationDecoder {
         return new Instruction(station, "blink", distance, direction, line);
     }
 
+    /***
+    * Returns a linecode based on given station code and the WMATA api
+    */
     public String getStationLine(String stationCode) {
         String linecode = "";
         try {
@@ -257,6 +280,9 @@ public class StationDecoder {
         return linecode;
     }
 
+    /***
+    * Gets and stores all circuit information. Allows code to travers in order to find next station for trains.
+    */
     public void loadCircuitIdInfo() {
         try {
             URL yahoo = new URL("https://api.wmata.com/TrainPositions/StandardRoutes?contentType=json");
@@ -302,6 +328,9 @@ public class StationDecoder {
         }
     }
 
+    /***
+    * Gets all Stations
+    */
     public void getStations() {
         try {
             String baseRequest = "https://api.wmata.com/Rail.svc/json/jStations?";
