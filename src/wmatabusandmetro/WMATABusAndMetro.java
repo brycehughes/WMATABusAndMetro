@@ -1,7 +1,7 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+* This is the visual class. Its used to show information about trains and thier positions. This is not supposed
+* to be a final representation. Final representation is a physical map with lightup LED strips. This is a quick and
+* dirty solution to ensure that the information is being processed correctly
  */
 package wmatabusandmetro;
 
@@ -76,7 +76,9 @@ public class WMATABusAndMetro extends Application {
         wbm.start();
 
     }
-
+    
+    //Used to speed up finding x,y locations where I need to put circles
+    //Just add circles, then print, and then copy that code into the "addAllCircles" function
     public void addCircle() {
         Circle c = new Circle();
         c.setCenterX(100.0f);
@@ -89,7 +91,8 @@ public class WMATABusAndMetro extends Application {
         root.getChildren().add(c);
 
     }
-
+    
+    //Visual Representation. 
     public void addAllCircles() {
         hcircle.put("N06", new Circle(109.0, 455.0, 5.0));
         hcircle.put("D02", new Circle(458.0, 550.0, 5.0));
@@ -295,6 +298,9 @@ public class WMATABusAndMetro extends Application {
         }
     }
     
+    /***
+    * Clear formatting and past instructions
+    */
     public void clearStations(){
         for(String key:hcircle.keySet()){
             Circle c = hcircle.get(key);
@@ -304,6 +310,9 @@ public class WMATABusAndMetro extends Application {
         }
     }
 
+    /***
+    * Take instruction set and show them onthe map
+    */
     public void displayPositions(HashMap<String, Instruction> instructions) {
         clearStations();
         for (String s : instructions.keySet()) {
@@ -323,6 +332,10 @@ public class WMATABusAndMetro extends Application {
         }
     }
 
+    
+    /***
+    *  Creates visual and gets instructions on a regular basis. Again, quick and dirty.
+    */
     @Override
     public void start(Stage primaryStage) throws Exception {
 
@@ -350,6 +363,7 @@ public class WMATABusAndMetro extends Application {
                 System.exit(0);
             }
         });
+        // Multi-thread so it doesn't block main program
         TimerTask t = new TimerTask(){
              @Override
             public void run() {
@@ -359,6 +373,7 @@ public class WMATABusAndMetro extends Application {
             }
         };
         Timer timer = new Timer();
+        //Do this every 10 Seconds
         timer.schedule(t, 10000, 10000);
         /*
         Platform.runLater(new Runnable() {
@@ -382,7 +397,6 @@ public class WMATABusAndMetro extends Application {
 
         @Override
         public void handle(DragEvent t) {
-            System.out.println("What the shit");
             orgSceneX = t.getSceneX();
             orgSceneY = t.getSceneY();
             orgTranslateX = ((Circle) (t.getSource())).getTranslateX();
